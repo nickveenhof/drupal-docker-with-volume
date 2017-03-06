@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql
+  labels:
+    name: mysql
+spec:
+  containers:
+    - resources:
+        limits:
+          cpu: 0.5
+      image: mysql:5.6
+      name: mysql
+      env:
+        - name: MYSQL_ROOT_PASSWORD
+          # Change this password!
+          value: somemysqlrootpassword
+        - name: MYSQL_DATABASE
+          # Change this password!
+          value: drupal8
+        - name: MYSQL_USER
+          # Change this password!
+          value: somemysqluser
+        - name: MYSQL_PASSWORD
+          # Change this password!
+          value: somemysqlpassword
+      ports:
+        - containerPort: 3306
+          name: mysql
+      volumeMounts:
+          # This name must match the volumes.name below.
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+  volumes:
+    - name: mysql-persistent-storage
+      gcePersistentDisk:
+        # This disk must already exist.
+        pdName: mysql-disk
+        fsType: ext4

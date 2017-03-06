@@ -2,7 +2,6 @@ FROM php:7.0-apache
 
 RUN a2enmod rewrite expires
 
-
 # install the PHP extensions we need
 RUN set -ex \
 	&& buildDeps=' \
