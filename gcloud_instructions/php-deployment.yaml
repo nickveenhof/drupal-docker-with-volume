@@ -1,0 +1,121 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  name: php-nginx
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        service: php-nginx
+    spec:
+      containers:
+        - image: wodby/drupal-php:7.0-1.0.0
+          name: php
+          resources:
+            limits:
+              cpu: 0.05
+          env:
+          - name: PHP_HOST_NAME
+            value: localhost:8000
+          - name: PHP_SENDMAIL_PATH
+            value: /usr/sbin/sendmail -t -i -S mailhog:1025
+          - name: PHP_SITE_NAME
+            value: dev
+          - name: GIT_EMAIL
+            value: nick.veenhof@gmail.com
+          - name: GIT_NAME
+            value: 'Nick Veenhof'
+          - name: GIT_USERNAME
+            value: 'nick_vh'
+          - name: ERRORS
+            value: '0'
+          - name: GIT_REPO
+            value: 'gitlab.com/nick_vh/nickveenhof.be.git'
+          - name: GIT_PERSONAL_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: gitlab
+                key: gitlab_token
+          # These secrets are required to start the pod.
+          # [START cloudsql_secrets]
+            # Connect to the SQL proxy over the local network on a fixed port.
+            # Insert the port number used by your database. 
+          - name: DB_HOST
+            value: 127.0.0.1:3306
+          - name: DB_NAME
+            # Connect to the SQL proxy over the local network on a fixed port.
+            # Insert the port number used by your database. 
+            value: drupal
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: cloudsql
+                key: password
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: cloudsql
+                key: username
+          volumeMounts:
+          - mountPath: /var/www/html
+            name: php-claim0
+        - image: wodby/drupal-nginx:7-1.10
+          resources:
+            limits:
+              cpu: 0.01
+          env:
+          - name: DRUPAL_VERSION
+            value: "8"
+          - name: NGINX_SERVER_NAME
+            value: localhost
+          - name: NGINX_UPSTREAM_NAME
+            value: php
+          - name: NGINX_BACKEND_HOST
+            value: localhost
+          name: nginx
+          ports:
+          - containerPort: 80
+          resources: {}
+          volumeMounts:
+          - mountPath: /var/www/html
+            name: php-claim0
+            readOnly: true
+        # Change [INSTANCE_CONNECTION_NAME] here to include your GCP
+        # project, the region of your Cloud SQL instance and the name
+        # of your Cloud SQL instance. The format is
+        # $PROJECT:$REGION:$INSTANCE
+        # Insert the port number used by your database.
+        # [START proxy_container]
+        - image: b.gcr.io/cloudsql-docker/gce-proxy:1.05
+          resources:
+              limits:
+                cpu: 0.01
+          name: cloudsql-proxy
+          command: ["/cloud_sql_proxy", "--dir=/cloudsql",
+                    "-instances=drupalcontainerengine:europe-west1:drupal=tcp:3306",
+                    "-credential_file=/secrets/cloudsql/credentials.json"]
+          volumeMounts:
+          - name: cloudsql-oauth-credentials
+            mountPath: /secrets/cloudsql
+            readOnly: true
+          - name: ssl-certs
+            mountPath: /etc/ssl/certs
+          - name: cloudsql
+            mountPath: /cloudsql
+      volumes:
+        - name: php-claim0
+          persistentVolumeClaim:
+            claimName: php-claim0
+        - name: cloudsql-oauth-credentials
+          secret:
+            secretName: cloudsql-oauth-credentials
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs
+        - name: cloudsql
+          emptyDir:

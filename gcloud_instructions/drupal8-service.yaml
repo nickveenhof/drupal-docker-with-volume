@@ -12,10 +12,6 @@ spec:
       name: http
       targetPort: 80
       protocol: TCP
-    - port: 443
-      name: https
-      targetPort: 443
-      protocol: TCP
   # Label keys and values that must match in order to receive traffic for this service.
   selector:
-    name: drupal8
+    app: drupal8

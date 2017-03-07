@@ -36,23 +36,16 @@ gcloud container clusters create drupalpd \
 --enable-autoupgrade
 
 # creation of the persistent disks for drupal and mysql
-gcloud compute disks create --size 100GB mysql-disk
 gcloud compute disks create --size 100GB drupal-disk
 
-# Create the Mysql Pod
-kubectl create -f mysql.yaml
-
-# Verify if it is running. Wait till it says "Running"
-kubectl get pod mysql
-
-# Create the mysql service
-kubectl create -f mysql-service.yaml
-
-# verify if it is running
-kubectl get service mysql
+# mysql
+# https://cloud.google.com/sql/docs/mysql/connect-container-engine
 
 # Create the Drupal pod
 kubectl create -f drupal8.yaml
+
+# Update the Drupal pod
+kubectl replace -f drupal8.yaml
 
 # Verify the drupal8 pod
 kubectl get pod drupal8
