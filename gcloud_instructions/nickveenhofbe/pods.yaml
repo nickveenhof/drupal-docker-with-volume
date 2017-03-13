@@ -2,30 +2,33 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   creationTimestamp: null
-  name: php-nginx
+  name: nickveenhofbe
+  labels:
+    site: nickveenhofbe
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     type: Recreate
   template:
     metadata:
       creationTimestamp: null
       labels:
-        service: php-nginx
+        site: nickveenhofbe
+        service: nickveenhofbe
     spec:
       containers:
-        - image: wodby/drupal-php:7.0-1.0.0
+        - image: nickveenhof/drupal-docker-with-volume:5.6
           name: php
           resources:
             limits:
-              cpu: 0.05
+              cpu: 0.01
           env:
           - name: PHP_HOST_NAME
             value: localhost:8000
           - name: PHP_SENDMAIL_PATH
             value: /usr/sbin/sendmail -t -i -S mailhog:1025
           - name: PHP_SITE_NAME
-            value: dev
+            value: nick
           - name: GIT_EMAIL
             value: nick.veenhof@gmail.com
           - name: GIT_NAME
@@ -63,11 +66,13 @@ spec:
                 key: username
           volumeMounts:
           - mountPath: /var/www/html
-            name: php-claim0
+            name: site-files
+          - mountPath: /mnt/nfs
+            name: nfs
         - image: wodby/drupal-nginx:7-1.10
           resources:
             limits:
-              cpu: 0.01
+              cpu: 0.005
           env:
           - name: DRUPAL_VERSION
             value: "8"
@@ -80,10 +85,12 @@ spec:
           name: nginx
           ports:
           - containerPort: 80
-          resources: {}
           volumeMounts:
           - mountPath: /var/www/html
-            name: php-claim0
+            name: site-files
+            readOnly: true
+          - mountPath: /mnt/nfs
+            name: nfs
             readOnly: true
         # Change [INSTANCE_CONNECTION_NAME] here to include your GCP
         # project, the region of your Cloud SQL instance and the name
@@ -94,7 +101,7 @@ spec:
         - image: b.gcr.io/cloudsql-docker/gce-proxy:1.05
           resources:
               limits:
-                cpu: 0.01
+                cpu: 0.005
           name: cloudsql-proxy
           command: ["/cloud_sql_proxy", "--dir=/cloudsql",
                     "-instances=drupalcontainerengine:europe-west1:drupal=tcp:3306",
@@ -108,9 +115,11 @@ spec:
           - name: cloudsql
             mountPath: /cloudsql
       volumes:
-        - name: php-claim0
+        - name: site-files
+          emptyDir: {}
+        - name: nfs
           persistentVolumeClaim:
-            claimName: php-claim0
+            claimName: nvbenfs
         - name: cloudsql-oauth-credentials
           secret:
             secretName: cloudsql-oauth-credentials

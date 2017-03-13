@@ -38,31 +38,51 @@ gcloud container clusters create drupalpd \
 # creation of the persistent disks for drupal and mysql
 gcloud compute disks create --size 100GB drupal-disk
 
-# mysql
-# https://cloud.google.com/sql/docs/mysql/connect-container-engine
-
-# Create the Drupal pod
-kubectl create -f drupal8.yaml
-
-# Update the Drupal pod
-kubectl replace -f drupal8.yaml
-
-# Verify the drupal8 pod
-kubectl get pod drupal8
-
-# Create drupal service
-kubectl create -f drupal8-service.yaml
-
-# verify
-kubectl get service drupal8frontend
-
-# Get our properties in order to visit our site. Wait till it mentions a property like: "LoadBalancer Ingress". It might take a while before the load balancer is created.
-kubectl describe service drupal8frontend
-
 # Log in to our kubernetes panel
 gcloud container clusters get-credentials drupalpd \
     --zone europe-west1-b --project drupalcontainerengine
 
 kubectl proxy
-
 # Browse to http://localhost:8001/ui
+
+# mysql
+# https://cloud.google.com/sql/docs/mysql/connect-container-engine
+
+# Create NFS Server PV & Claim
+kubectl create -f nfs-shared1-pv.yaml
+
+# Create NFS Server
+kubectl create -f nfs-shared1-server.yaml
+
+# Create a folder for your site
+kubectl exec -it nfs-shared1-server-rxlfk mkdir /exports/nickveenhofbe
+
+# Create NFS Service
+kubectl create -f nfs-shared1-service.yaml
+
+# Get the IP Address for our NFS Shared1 server
+kubectl describe service nfs-shared1-server
+
+# Replace IP address in nickveenhofbe/nfs-pv.yaml
+# And Create NFS folder volume to mount for our site
+kubectl create -f nickveenhofbe/nfs-pv.yaml
+
+# Claim this NFS folder volume
+kubectl create -f nickveenhofbe/nfs-pv-claim.yaml
+
+# Start the pods (2 of them)
+kubectl create -f nickveenhofbe/pods.yaml
+
+# Update the Drupal pod
+kubectl replace -f nickveenhofbe/pods.yaml
+
+# Create drupal service
+kubectl create -f nickveenhofbe/lb.yaml
+
+# verify that it points to defined endpoints (eg, ip's)
+kubectl describe service nickveenhofbe
+
+# Get our properties in order to visit our site. Wait till it mentions a property like: "LoadBalancer Ingress". It might take a while before the load balancer is created.
+kubectl describe service nickveenhofbe
+
+# Visit the site on the Public IP that is found in the load balancer
